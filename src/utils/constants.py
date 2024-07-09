@@ -34,8 +34,11 @@ LOCAL_DATA_PATH = os.path.join(BASE_PATH, "local_data")
 MODEL_CONFIG_PATH = os.path.join(BASE_PATH, "model_configs")
 TRAIN_CONFIG_PATH = os.path.join(BASE_PATH, "train_configs")
 
-# gpt2 tokenizer
-GPT2_TOKENIZER = 'openai-community/gpt2'
-
 # huggingface login id
 HF_ID = "aklein4"
+
+# diffusion model info
+IMAGE_SIZE = 512
+PATCH_SIZE = 8
+LATENT_SIZE = IMAGE_SIZE // PATCH_SIZE
+LATENT_DEPTH = PATCH_SIZE * PATCH_SIZE * 3
