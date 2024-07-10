@@ -173,6 +173,7 @@ class XLABaseTrainer:
         curr_step = 0
         image_tracker = xm.RateTracker()
         step_tracker = xm.RateTracker()
+        seen_images = 0
         while True:
             for prompts, x, mask in loader:
                 assert len(prompts) == x.shape[0], f"Prompts ({len(prompts)}) and x ({x.shape[0]}) must have same length!"
@@ -199,7 +200,7 @@ class XLABaseTrainer:
 
                     # get results from train step
                     with autocast(constants.XLA_DEVICE()):
-                        results = self.train_step(
+                        loss, results = self.train_step(
                             model,
                             scheduler,
                             tokenizer,
@@ -210,18 +211,15 @@ class XLABaseTrainer:
                             uncond_embeds
                         )
 
-                        # scale results for accumulation
-                        for k, v in results.items():
-                            results[k] = v / (len(x_split) * constants.NUM_XLA_DEVICES())
-
                         # save results
                         with torch.no_grad():
                             for k, v in results.items():
                                 if k not in results_accum:
-                                    results_accum[k] = 0.0
-                                results_accum[k] = results_accum[k] + v.detach()
+                                    results_accum[k] = []
+                                results_accum[k].append((v[0].detach(), v[1].detach()))
                     
-                    results.loss.backward()
+                    loss = results.loss / (len(x_split) * constants.NUM_XLA_DEVICES())
+                    loss.backward()
                     if len(x_split) > 1:
                         xm.mark_step()
 
@@ -241,9 +239,18 @@ class XLABaseTrainer:
 
                 def _post_step():
 
+                    # log seen images
+                    seen_images += xm.mesh_reduce("seen_images_reduce", mask.int().sum().item(), np.sum)
+                    self.log.seen_images = seen_images
+
                     # log
+                    def reducer(x):
+                        total = np.sum([v[0].item() for v in x])
+                        denom = np.sum([v[1].item() for v in x])
+                        return total / (denom + self.mask_epsilon)
+
                     for k, v in results_accum.items():
-                        r = xm.mesh_reduce(f"{k}_reduce", v.item(), np.sum)
+                        r = xm.mesh_reduce(f"{k}_reduce", v, reducer)
                         self.log[k] = r
 
                     # print update

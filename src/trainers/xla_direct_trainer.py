@@ -71,30 +71,29 @@ class XLADirectTrainer(XLABaseTrainer):
         model_pred = decode_latents(model_pred)
 
         weight = compute_min_snr(scheduler, t, self.snr_gamma, self.snr_epsilon)
-        loss = masked_mse_loss(
+        loss, loss_denom = masked_mse_loss(
             model_pred,
             x,
             mask,
             weight=weight,
-            mask_epsilon=self.mask_epsilon
         )
-        uncond_loss = masked_mse_loss(
+        uncond_loss, uncond_loss_denom = masked_mse_loss(
             model_pred,
             x,
             torch.logical_and(mask, uncond_coin),
             weight=weight,
-            mask_epsilon=self.mask_epsilon
         )
-        cond_loss = masked_mse_loss(
+        cond_loss, cond_loss_denom = masked_mse_loss(
             model_pred,
             x,
             torch.logical_and(mask, ~uncond_coin),
             weight=weight,
-            mask_epsilon=self.mask_epsilon
         )
 
-        return DotDict(
-            loss=loss,
-            uncond_loss=uncond_loss,
-            cond_loss=cond_loss
+        loss_out = loss / (loss_denom + self.mask_epsilon)
+
+        return loss_out, DotDict(
+            loss=(loss, loss_denom),
+            uncond_loss=(uncond_loss, uncond_loss_denom),
+            cond_loss=(cond_loss, cond_loss_denom),
         )

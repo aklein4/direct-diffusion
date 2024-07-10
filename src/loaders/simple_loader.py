@@ -25,31 +25,32 @@ def load_image(args):
     url, image_size = args
 
     try:
-      image = PIL.Image.open(requests.get(url, stream=True, timeout=0.5).raw)
-    except:
-      return None, False
+        image = PIL.Image.open(requests.get(url, stream=True, timeout=0.5).raw)
     
-    image = PIL.ImageOps.exif_transpose(image)
-    image = image.convert("RGB")
+        image = PIL.ImageOps.exif_transpose(image)
+        image = image.convert("RGB")
 
-    w, h = image.size
+        w, h = image.size
 
-    if w >= h:
-        upper, lower = 0, h
+        if w >= h:
+            upper, lower = 0, h
 
-        left = np.random.randint(w - h + 1)
-        right = left + h
+            left = np.random.randint(w - h + 1)
+            right = left + h
 
-    else:
-        left, right = 0, w
+        else:
+            left, right = 0, w
 
-        upper = np.random.randint(h - w + 1)
-        lower = upper + w
+            upper = np.random.randint(h - w + 1)
+            lower = upper + w
 
-    image = image.crop((left, upper, right, lower))
-    image = image.resize((image_size, image_size))
+        image = image.crop((left, upper, right, lower))
+        image = image.resize((image_size, image_size))
 
-    return np.asarray(image).copy(), True
+        return np.asarray(image).copy(), True
+
+    except:
+        return None, False
 
 
 def simple_collate_fn(data):
@@ -65,16 +66,32 @@ def simple_collate_fn(data):
             ]
         )
 
-    images, valids = [], []
-    for image, valid in results:
+    images, valids, idxs = [], [], []
+    valid_idx = []
+    for idx, res in enumerate(results):
+        image, valid = res
+
         if image is None:
             images.append(ZERO_IMG.copy())
         else:
             images.append(image)
         valids.append(valid)
+        idxs.append(idx)
+
+        if valid:
+            valid_idx.append(idx)
+
+    if len(valid_idx) > 0:
+        for idx in range(len(images)):
+            if not valids[idx]:
+                choice = np.random.choice(valid_idx)
+                images[idx] = images[choice].copy()
+                valids[idx] = valids[choice]
+                idxs[idx] = idxs[choice]
 
     prompts = []
-    for example in data:
+    for idx in idxs:
+        example = data[idx]
 
         choice = np.random.randint(3)
         if choice == 0:
