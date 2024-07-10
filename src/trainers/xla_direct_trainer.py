@@ -78,7 +78,23 @@ class XLADirectTrainer(XLABaseTrainer):
             weight=weight,
             mask_epsilon=self.mask_epsilon
         )
+        uncond_loss = masked_mse_loss(
+            model_pred,
+            x,
+            torch.logical_and(mask, uncond_coin),
+            weight=weight,
+            mask_epsilon=self.mask_epsilon
+        )
+        cond_loss = masked_mse_loss(
+            model_pred,
+            x,
+            torch.logical_and(mask, ~uncond_coin),
+            weight=weight,
+            mask_epsilon=self.mask_epsilon
+        )
 
         return DotDict(
-            loss=loss
+            loss=loss,
+            uncond_loss=uncond_loss,
+            cond_loss=cond_loss
         )
