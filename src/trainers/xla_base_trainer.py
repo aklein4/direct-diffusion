@@ -218,7 +218,7 @@ class XLABaseTrainer:
                                     results_accum[k] = []
                                 results_accum[k].append((v[0].detach(), v[1].detach()))
                     
-                    loss = results.loss / (len(x_split) * constants.NUM_XLA_DEVICES())
+                        loss = loss / (len(x_split) * constants.NUM_XLA_DEVICES())
                     loss.backward()
                     if len(x_split) > 1:
                         xm.mark_step()
