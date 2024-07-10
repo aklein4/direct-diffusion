@@ -71,7 +71,7 @@ class XLADirectTrainer(XLABaseTrainer):
         # model_pred = decode_latents(model_pred)
         model_pred = model.conv_in.weight.mean() * noise
 
-        weight = compute_min_snr(scheduler, t, self.snr_gamma, self.snr_epsilon)
+        weight = self.snr_scale * compute_min_snr(scheduler, t, self.snr_gamma, self.snr_epsilon)
         loss, loss_denom = masked_mse_loss(
             model_pred,
             x,
