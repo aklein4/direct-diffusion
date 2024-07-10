@@ -245,8 +245,12 @@ class XLABaseTrainer:
 
                     # log
                     def reducer(x):
-                        total = np.sum([v[0].item() for v in x])
-                        denom = np.sum([v[1].item() for v in x])
+                        values = sum([v[0] for v in x], [])
+                        counts = sum([v[1] for v in x], [])
+
+                        total = np.sum([v[0].item() for v in values])
+                        denom = np.sum([v[1].item() for c in counts])
+                        
                         return total / (denom + self.mask_epsilon)
 
                     for k, v in results_accum.items():
