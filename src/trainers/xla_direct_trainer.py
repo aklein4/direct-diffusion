@@ -26,7 +26,11 @@ class XLADirectTrainer(XLABaseTrainer):
         mask,
         uncond_embeds
     ):
-            
+        
+        return DotDict(
+            loss=model.conv_in.weight.mean()
+        )
+
         # encode prompts
         with torch.no_grad():
             prompt_embeds = encode_prompts(
