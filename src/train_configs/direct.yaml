@@ -3,7 +3,7 @@ trainer_type: XLADirectTrainer
 start_lr: 0.00005
 end_lr: null
 
-bs: 512
+bs: 128
 mini_bs: 2
 
 beta1: 0.9
