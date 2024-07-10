@@ -144,6 +144,8 @@ class XLABaseTrainer:
         # init models
         model.requires_grad_(True)
         model.train()
+        if self.gradient_checkpointing:
+            model.enable_gradient_checkpointing()
 
         text_encoder.requires_grad_(False)
         text_encoder.eval()

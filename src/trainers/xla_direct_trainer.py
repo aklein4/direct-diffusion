@@ -63,20 +63,20 @@ class XLADirectTrainer(XLABaseTrainer):
         noisy = scheduler.add_noise(x, peturbed_noise, t)
 
         # get the model output
-        # model_pred = model(
-        #     encode_images(noisy),
-        #     t,
-        #     embeds,
-        # ).sample
-        # model_pred = decode_latents(model_pred)
-        model_pred = model.conv_in.weight.mean() * x
+        model_pred = model(
+            encode_images(noisy),
+            t,
+            embeds,
+        ).sample
+        model_pred = decode_latents(model_pred)
 
         weight = compute_min_snr(scheduler, t, self.snr_gamma, self.snr_epsilon)
         loss = masked_mse_loss(
             model_pred,
             x,
             mask,
-            weight=weight
+            weight=weight,
+            mask_epsilon=self.mask_epsilon
         )
 
         return DotDict(

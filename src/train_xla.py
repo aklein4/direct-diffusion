@@ -16,6 +16,11 @@ from utils.config_utils import load_train_config
 from utils.logging_utils import log_print
 
 
+# overwrite the default checkpointing function
+from torch_xla.utils.checkpoint import checkpoint as xla_checkpoint_fn
+torch.utils.checkpoint.checkpoint = xla_checkpoint_fn
+
+
 def _mp_fn(index, args):
 
     # setup

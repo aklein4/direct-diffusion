@@ -11,7 +11,8 @@ def masked_mse_loss(
     pred,
     target,
     mask,
-    weight=None
+    weight=None,
+    mask_epsilon=1e-7
 ):
     pred = pred.view(pred.shape[0], -1)
     target = target.view(target.shape[0], -1)
@@ -20,12 +21,11 @@ def masked_mse_loss(
     loss = (pred - target).pow(2).mean(dim=-1)
 
     if weight is not None:
-        log_master_print(f"{loss.dtype}, {weight.dtype}")
         loss = loss * weight
     
     mask = mask.float()
     loss = loss * mask
 
-    loss = loss.sum() / (mask.sum() + 1e-6)
+    loss = loss.sum() / (mask.sum() + mask_epsilon)
 
     return loss
