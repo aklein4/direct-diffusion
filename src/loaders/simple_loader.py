@@ -22,7 +22,7 @@ ZERO_IMG = np.zeros((constants.IMAGE_SIZE, constants.IMAGE_SIZE, 3), dtype=np.ui
 
 def load_image(url):
     try:
-      image = PIL.Image.open(requests.get(url, stream=True, timeout=0.2).raw)
+      image = PIL.Image.open(requests.get(url, stream=True, timeout=0.5).raw)
     except:
       return ZERO_IMG, False
     
@@ -52,9 +52,8 @@ def load_image(url):
 def simple_collate_fn(data):
 
     images = []
-    prompts = []
     valids = []
-
+    prompts = []
     for example in data:
 
         image, valid = load_image(example['url'])
@@ -81,18 +80,14 @@ def simple_collate_fn(data):
 def get_simple_loader(
     name: str,
     split: str,
-    bs: int,
-    mini_bs: int,
+    bs: int
 ):
 
     # prepare batch sizes
     if constants.XLA_AVAILABLE:
-        total_mini_bs = mini_bs * constants.NUM_XLA_DEVICES()
-        if bs % total_mini_bs != 0:
-            raise ValueError(f"Batch size {bs} not divisible by total mini batch size {total_mini_bs}")
-        if total_mini_bs > bs:
-            log_print(f"Warning: total mini batch size {total_mini_bs} larger than batch size {bs}")
-        sample_size = mini_bs * (bs // total_mini_bs)
+        if bs % constants.NUM_XLA_DEVICES != 0:
+            raise ValueError(f"Batch size {bs} not divisible by number of devices {constants.NUM_XLA_DEVICES}")
+        sample_size = bs // constants.NUM_XLA_DEVICES
     else:
         sample_size = bs
 

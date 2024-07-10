@@ -40,7 +40,6 @@ def _mp_fn(index, args):
         args.dataset,
         "train",
         train_config["bs"],
-        train_config["mini_bs"],
     )
 
     log_print("Train!")
