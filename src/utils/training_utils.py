@@ -13,6 +13,7 @@ def masked_mse_loss(
 ):
     pred = pred.view(pred.shape[0], -1)
     target = target.view(target.shape[0], -1)
+    mask = mask.float()
 
     loss = (pred - target).pow(2).mean(dim=-1)
 

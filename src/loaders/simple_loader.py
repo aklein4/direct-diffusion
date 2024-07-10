@@ -24,7 +24,7 @@ def load_image(url):
     try:
       image = PIL.Image.open(requests.get(url, stream=True, timeout=0.2).raw)
     except:
-      return ZERO_IMG, True
+      return ZERO_IMG, False
     
     image = PIL.ImageOps.exif_transpose(image)
     image = image.convert("RGB")
@@ -46,7 +46,7 @@ def load_image(url):
     image = image.crop((left, upper, right, lower))
     image = image.resize((constants.IMAGE_SIZE, constants.IMAGE_SIZE))
 
-    return np.asarray(image), False
+    return np.asarray(image).copy(), True
 
 
 def simple_collate_fn(data):
@@ -97,7 +97,7 @@ def get_simple_loader(
         sample_size = bs
 
     # get streaming dataset
-    dataset = datasets.load_dataset(name, split)
+    dataset = datasets.load_dataset(name, split=split, streaming=True)
 
     # wrap in loader with collator
     loader = torch.utils.data.DataLoader(
@@ -105,7 +105,7 @@ def get_simple_loader(
         batch_size=sample_size,
         collate_fn=simple_collate_fn,
         drop_last=True,
-        num_workers=8
+        # num_workers=(4 if constants.XLA_AVAILABLE else 0),
     )
 
     if not constants.XLA_AVAILABLE:

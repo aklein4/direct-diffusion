@@ -66,11 +66,11 @@ class XLADirectTrainer(XLABaseTrainer):
         model_pred = model(
             encode_images(noisy),
             t,
-            prompt_embeds,
+            embeds,
         ).sample
         model_pred = decode_latents(model_pred)
 
-        weight = compute_min_snr(scheduler, t, self.snr_gamma)
+        weight = compute_min_snr(scheduler, t, self.snr_gamma, self.snr_epsilon)
         loss = masked_mse_loss(
             model_pred,
             x,

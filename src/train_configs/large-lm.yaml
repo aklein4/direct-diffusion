@@ -1,17 +1,17 @@
-trainer_type: XLALMTrainer
+trainer_type: XLADirectTrainer
 
-start_lr: 0.00025
-end_lr: 0.000025
+start_lr: 0.00005
+end_lr: null
 
 bs: 512
-mini_bs: 16
+mini_bs: 2
 
 beta1: 0.9
-beta2: 0.95
+beta2: 0.999
 eps: 0.00000001
-weight_decay: 0.1
+weight_decay: 0.01
 
-warmup_steps: 500
-lr_steps: 500000
+warmup_steps: 2000
+lr_steps: null
 
-checkpoint_interval: 2500
+checkpoint_interval: 5000

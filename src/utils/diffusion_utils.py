@@ -65,7 +65,7 @@ def decode_latents(latents):
     return images
 
 
-def compute_min_snr(scheduler, timesteps, gamma):
+def compute_min_snr(scheduler, timesteps, gamma, epsilon):
     """
     Computes SNR as per
     https://github.com/TiankaiHang/Min-SNR-Diffusion-Training/blob/521b624bd70c67cee4bdf49225915f5945a872e3/guided_diffusion/gaussian_diffusion.py#L847-L849
@@ -90,6 +90,6 @@ def compute_min_snr(scheduler, timesteps, gamma):
     snr = (alpha / sigma) ** 2
 
     # apply min
-    min_snr = torch.clamp(snr, max=gamma)
+    min_snr = torch.clip(snr, min=epsilon, max=gamma)
 
     return min_snr
