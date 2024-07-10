@@ -173,7 +173,7 @@ class XLABaseTrainer:
         curr_step = 0
         image_tracker = xm.RateTracker()
         step_tracker = xm.RateTracker()
-        seen_images = 0
+        self.seen_images = 0
         while True:
             for prompts, x, mask in loader:
                 assert len(prompts) == x.shape[0], f"Prompts ({len(prompts)}) and x ({x.shape[0]}) must have same length!"
@@ -240,8 +240,8 @@ class XLABaseTrainer:
                 def _post_step():
 
                     # log seen images
-                    seen_images += xm.mesh_reduce("seen_images_reduce", mask.int().sum().item(), np.sum)
-                    self.log.seen_images = seen_images
+                    self.seen_images += xm.mesh_reduce("seen_images_reduce", mask.int().sum().item(), np.sum)
+                    self.log.seen_images = self.seen_images
 
                     # log
                     def reducer(x):
