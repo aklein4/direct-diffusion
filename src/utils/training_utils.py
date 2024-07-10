@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from logging_utils import log_master_print
+
 
 def masked_mse_loss(
     pred,
@@ -18,6 +20,7 @@ def masked_mse_loss(
     loss = (pred - target).pow(2).mean(dim=-1)
 
     if weight is not None:
+        log_master_print(loss.dtype, weight.dtype)
         loss = loss * weight
     
     mask = mask.float()
