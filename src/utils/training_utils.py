@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from logging_utils import log_master_print
+from utils.logging_utils import log_master_print
 
 
 def masked_mse_loss(
