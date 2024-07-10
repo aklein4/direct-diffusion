@@ -7,7 +7,7 @@ import os
 import argparse
 import huggingface_hub as hf
 
-from loaders import get_loader
+from loaders.simple_loader import get_simple_loader
 from models import get_components
 from trainers import TRAINER_DICT
 
@@ -36,7 +36,7 @@ def _mp_fn(index, args):
     text_encoder = text_encoder.to(constants.XLA_DEVICE())
 
     log_print("Loading data...")
-    loader = get_loader(
+    loader = get_simple_loader(
         args.dataset,
         "train",
         train_config["bs"],
@@ -44,7 +44,7 @@ def _mp_fn(index, args):
     )
 
     log_print("Train!")
-    trainer_type = train_config.pop("trainer_type")
+    trainer_type = train_config["trainer_type"]
     trainer = TRAINER_DICT[trainer_type](
         args.project,
         args.name,
@@ -53,7 +53,9 @@ def _mp_fn(index, args):
     )
     trainer.train(
         model,
+        scheduler,
         tokenizer,
+        text_encoder,
         loader
     )
 

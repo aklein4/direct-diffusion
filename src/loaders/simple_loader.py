@@ -24,7 +24,7 @@ def load_image(url):
     try:
       image = PIL.Image.open(requests.get(url, stream=True, timeout=0.2).raw)
     except:
-      return ZERO_IMG, False
+      return ZERO_IMG, True
     
     image = PIL.ImageOps.exif_transpose(image)
     image = image.convert("RGB")
@@ -46,7 +46,7 @@ def load_image(url):
     image = image.crop((left, upper, right, lower))
     image = image.resize((constants.IMAGE_SIZE, constants.IMAGE_SIZE))
 
-    return np.asarray(image), True
+    return np.asarray(image), False
 
 
 def simple_collate_fn(data):
@@ -75,17 +75,14 @@ def simple_collate_fn(data):
         ten = (ten * 2.0) - 1.0
         tens.append(ten)
 
-    return torch.stack(tens), prompts, torch.tensor(valids)
+    return prompts, torch.stack(tens), torch.tensor(valids)
 
 
 def get_simple_loader(
     name: str,
     split: str,
-    pad_token_id: int,
-    seq_length: int,
     bs: int,
     mini_bs: int,
-    start_seq_ind: int = 0
 ):
 
     # prepare batch sizes
@@ -107,8 +104,8 @@ def get_simple_loader(
         dataset,
         batch_size=sample_size,
         collate_fn=simple_collate_fn,
-        drop_last=True
-        num_workers=4
+        drop_last=True,
+        num_workers=8
     )
 
     if not constants.XLA_AVAILABLE:
