@@ -33,7 +33,7 @@ def _mp_fn(index, args):
     model, scheduler, tokenizer, text_encoder = get_components(args.model_url)
 
     model = model.to(constants.XLA_DEVICE())
-    text_encoder = text_encoder.to(constants.XLA_DEVICE())
+    text_encoder = text_encoder.to(torch.bfloat16).to(constants.XLA_DEVICE())
 
     log_print("Loading data...")
     loader = get_simple_loader(
