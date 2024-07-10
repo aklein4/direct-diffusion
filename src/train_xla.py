@@ -18,9 +18,15 @@ from utils.logging_utils import log_print
 
 # overwrite the default checkpointing function
 from torch_xla.utils.checkpoint import checkpoint as xla_checkpoint_fn
-def override_checkpoint_fn(*args, **kwargs):
-    log_print('here!')
-    return xla_checkpoint_fn(*args, **kwargs)
+
+def override_checkpoint_fn(fn, *args, **kwargs):
+
+    # we can't gradient checkpoint with reentrant mode
+    if kwargs.pop('use_reentrant', False):
+        return fn(*args, **kwargs)
+
+    return xla_checkpoint_fn(fn, *args, **kwargs)
+
 torch.utils.checkpoint.checkpoint = override_checkpoint_fn
 
 
