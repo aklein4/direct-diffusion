@@ -78,6 +78,6 @@ class XLADirectTrainer(XLABaseTrainer):
             weight=weight
         )
 
-        return {
-            "loss": loss
-        }
+        return DotDict(
+            loss=loss
+        )

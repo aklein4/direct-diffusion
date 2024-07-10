@@ -22,7 +22,7 @@ pip install torch~=2.3.0 torch_xla[tpu]~=2.3.0 -f https://storage.googleapis.com
 export PATH="/home/$USER/.local/bin:$PATH"
 
 # install extras
-pip install transformers diffusers datasets webdataset wandb matplotlib pillow
+pip install transformers diffusers accelerate datasets webdataset wandb matplotlib pillow
 
 # login to huggingface
 huggingface-cli login --token $1 --add-to-git-credential
