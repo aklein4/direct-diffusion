@@ -85,9 +85,9 @@ def get_simple_loader(
 
     # prepare batch sizes
     if constants.XLA_AVAILABLE:
-        if bs % constants.NUM_XLA_DEVICES != 0:
-            raise ValueError(f"Batch size {bs} not divisible by number of devices {constants.NUM_XLA_DEVICES}")
-        sample_size = bs // constants.NUM_XLA_DEVICES
+        if bs % constants.NUM_XLA_DEVICES() != 0:
+            raise ValueError(f"Batch size {bs} not divisible by number of devices {constants.NUM_XLA_DEVICES()}")
+        sample_size = bs // constants.NUM_XLA_DEVICES()
     else:
         sample_size = bs
 
