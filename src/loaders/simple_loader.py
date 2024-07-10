@@ -116,7 +116,7 @@ def get_simple_loader(
         batch_size=sample_size,
         collate_fn=simple_collate_fn,
         drop_last=True,
-        num_workers=(8 if constants.XLA_AVAILABLE else 0),
+        num_workers=(min(8, dataset.n_shards) if constants.XLA_AVAILABLE else 0),
     )
 
     if not constants.XLA_AVAILABLE:
