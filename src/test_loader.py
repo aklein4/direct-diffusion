@@ -7,7 +7,7 @@ from loaders.simple_loader import get_simple_loader
 loader = get_simple_loader(
     'aklein4/coyo-llava-hq',
     "validation",
-    32,
+    8,
 )
 
 with tqdm() as pbar:

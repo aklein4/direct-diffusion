@@ -12,6 +12,7 @@ import numpy as np
 import PIL
 import datasets
 import requests
+from multiprocessing.pool import ThreadPool
 
 import utils.constants as constants
 from utils.logging_utils import log_print
@@ -20,11 +21,13 @@ from utils.logging_utils import log_print
 ZERO_IMG = np.zeros((constants.IMAGE_SIZE, constants.IMAGE_SIZE, 3), dtype=np.uint8)
 
 
-def load_image(url):
+def load_image(args):
+    url, image_size = args
+
     try:
       image = PIL.Image.open(requests.get(url, stream=True, timeout=0.5).raw)
     except:
-      return ZERO_IMG, False
+      return None, False
     
     image = PIL.ImageOps.exif_transpose(image)
     image = image.convert("RGB")
@@ -44,21 +47,34 @@ def load_image(url):
         lower = upper + w
 
     image = image.crop((left, upper, right, lower))
-    image = image.resize((constants.IMAGE_SIZE, constants.IMAGE_SIZE))
+    image = image.resize((image_size, image_size))
 
     return np.asarray(image).copy(), True
 
 
 def simple_collate_fn(data):
 
-    images = []
-    valids = []
+    with ThreadPool() as pool:
+        results = pool.map(
+            load_image,
+            [
+                (
+                    example['url'],
+                    constants.IMAGE_SIZE
+                ) for example in data
+            ]
+        )
+
+    images, valids = [], []
+    for image, valid in results:
+        if image is None:
+            images.append(ZERO_IMG.copy())
+        else:
+            images.append(image)
+        valids.append(valid)
+
     prompts = []
     for example in data:
-
-        image, valid = load_image(example['url'])
-        images.append(image)
-        valids.append(valid)
 
         choice = np.random.randint(3)
         if choice == 0:
