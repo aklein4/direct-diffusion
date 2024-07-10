@@ -20,7 +20,7 @@ def masked_mse_loss(
     loss = (pred - target).pow(2).mean(dim=-1)
 
     if weight is not None:
-        log_master_print(loss.dtype, weight.dtype)
+        log_master_print(f"{loss.dtype}, {weight.dtype}")
         loss = loss * weight
     
     mask = mask.float()
