@@ -1,10 +1,10 @@
 trainer_type: XLADirectTrainer
 
-start_lr: 0.00005
+start_lr: 0.0001
 end_lr: null
 
-bs: 512
-mini_bs: 16
+bs: 2048
+mini_bs: 8
 
 beta1: 0.9
 beta2: 0.999
@@ -16,7 +16,7 @@ lr_steps: null
 
 checkpoint_interval: 5000
 
-gradient_checkpointing: true
+gradient_checkpointing: false
 
 uncond_prob: 0.1
 ip_gamma: 0.1

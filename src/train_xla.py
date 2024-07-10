@@ -16,7 +16,7 @@ from utils.config_utils import load_train_config
 from utils.logging_utils import log_print
 
 
-# overwrite the default checkpointing function
+# override the default checkpointing function
 from torch_xla.utils.checkpoint import checkpoint as xla_checkpoint_fn
 
 def override_checkpoint_fn(fn, *args, **kwargs):
