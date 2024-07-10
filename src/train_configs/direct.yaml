@@ -15,3 +15,10 @@ warmup_steps: 2000
 lr_steps: null
 
 checkpoint_interval: 5000
+
+uncond_prob: 0.1
+
+ip_gamma: 0.1
+
+snr_gamma: 5
+snr_epsilon: 0.001

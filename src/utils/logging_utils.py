@@ -27,7 +27,7 @@ def log_master_print(x):
 
 class LogSection:
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, master=False):
         """ A context manager for logging sections of code.
          - prints a starting message when entering
          - prints a finishing message when exiting
@@ -37,11 +37,19 @@ class LogSection:
             name (str): name of the section
         """
         self.name = name
+        self.master = master
     
     
     def __enter__(self):
-        log_print(f"Starting {self.name}...")
+        if self.master:
+            log_master_print(f"Starting {self.name}...")
+        else:
+            log_print(f"Starting {self.name}...")
+    
     
     def __exit__(self, exc_type, exc_value, traceback):
         if exc_type is None:
-            log_print(f"Finished {self.name}.")
+            if self.master:
+                log_master_print(f"Finished {self.name}.")
+            else:
+                log_print(f"Finished {self.name}.")

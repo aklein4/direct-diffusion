@@ -158,7 +158,7 @@ class XLABaseTrainer:
         lr_scheduler = self._get_lr_scheduler(optimizer)
 
         # get unconditional prompt
-        with LogSection("Unconditional Prompt Encoding"):
+        with LogSection("Unconditional Prompt Encoding", master=True):
             with torch.no_grad():
                 with autocast(constants.XLA_DEVICE()):
                     uncond_embeds = encode_prompts(
