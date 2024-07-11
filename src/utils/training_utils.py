@@ -24,4 +24,4 @@ def masked_mse_loss(
     
     loss = loss * mask
 
-    return loss.sum(), mask.float().sum()
+    return loss.sum(), mask.sum()

@@ -19,8 +19,14 @@ checkpoint_interval: 5000
 gradient_checkpointing: false
 
 uncond_prob: 0.1
+mask_epsilon: 0.0000001
+
 ip_gamma: 0.1
+
+il_lambda: 1.0
+il_step: 50
+il_guidance: 5.0
+
 snr_gamma: 5
 snr_epsilon: 0.01
 snr_scale: 0.75
-mask_epsilon: 0.0000001

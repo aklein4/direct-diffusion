@@ -8,7 +8,8 @@ from  utils.training_utils import masked_mse_loss
 from utils.diffusion_utils import (
     encode_prompts,
     encode_images, decode_latents,
-    compute_min_snr
+    compute_min_snr,
+    add_more_noise, step_to, insert_noise
 )
 import utils.constants as constants
 
@@ -54,13 +55,34 @@ class XLADirectTrainer(XLABaseTrainer):
             device=constants.XLA_DEVICE(),
             dtype=torch.long
         )
+        noisy = scheduler.add_noise(x, noise, t)
+
+        if self.il_lambda is not None:
+            with torch.no_grad():
+                t_il = torch.clamp(t + self.il_step, max=scheduler.config.num_train_timesteps - 1)
+
+                noise_il = torch.randn_like(x)
+                noisy_il = add_more_noise(scheduler, noisy, noise_il, t, t_il)
+
+                il_pred = model(
+                    torch.cat([encode_images(noisy_il), encode_images(noisy_il)], dim=0),
+                    torch.cat([t_il, t_il], dim=0),
+                    torch.cat([uncond_embeds.expand(t.shape[0], -1, -1), prompt_embeds], dim=0),
+                ).sample
+                uncond_pred, cond_pred = il_pred.chunk(2, dim=0)
+                il_pred = (cond_pred + self.il_guidance * (cond_pred - uncond_pred))
+
+                il_sample = step_to(scheduler, il_pred, t_il, noisy_il, t)
+                il_diff = il_sample - noisy
+
+                il_scale = torch.zeros_like(t).float()
+                il_scale.exponential_(self.il_lambda).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+
+                noisy = noisy + il_scale * il_diff
 
         # input peturbation
-        peturbation = torch.randn_like(x)
-        peturbed_noise = noise + self.ip_gamma * peturbation
-
-        # add noise
-        noisy = scheduler.add_noise(x, peturbed_noise, t)
+        peturbation = self.ip_gamma * torch.randn_like(x)
+        noisy = insert_noise(scheduler, noisy, peturbation, t)
 
         # get the model output
         model_pred = model(
