@@ -77,7 +77,9 @@ class XLADirectTrainer(XLABaseTrainer):
                 il_diff = il_sample - noisy
 
                 il_scale = torch.zeros_like(t).float()
-                il_scale.exponential_(self.il_lambda).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+                il_scale.exponential_(self.il_lambda)
+                while len(il_scale.shape) < len(noisy.shape):
+                    il_scale = il_scale.unsqueeze(-1)
 
                 noisy = noisy + il_scale * il_diff
 
