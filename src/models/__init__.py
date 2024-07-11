@@ -9,6 +9,7 @@ def get_components(url):
 
     scheduler_config = DDIMScheduler.load_config(url, subfolder='scheduler')
     scheduler_config['rescale_betas_zero_snr'] = True
+    scheduler_config['prediction_type'] = 'sample'
     scheduler = DDIMScheduler.from_config(scheduler_config)
     scheduler.set_timesteps(scheduler.config.num_train_timesteps)
 
