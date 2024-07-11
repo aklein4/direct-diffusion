@@ -62,8 +62,7 @@ class XLADirectTrainer(XLABaseTrainer):
                 t_il = torch.clamp(t + self.il_step, max=scheduler.config.num_train_timesteps - 1)
 
                 noise_il = torch.randn_like(x)
-                noisy_il = noise_il
-                # noisy_il = add_more_noise(scheduler, noisy, noise_il, t, t_il)
+                noisy_il = add_more_noise(scheduler, noisy, noise_il, t, t_il)
 
                 il_pred = model(
                     torch.cat([encode_images(noisy_il), encode_images(noisy_il)], dim=0),
@@ -74,7 +73,8 @@ class XLADirectTrainer(XLABaseTrainer):
                 il_pred = (cond_pred + self.il_guidance * (cond_pred - uncond_pred))
                 il_pred = decode_latents(il_pred)
 
-                il_sample = step_to(scheduler, il_pred, t_il, noisy_il, t)
+                # il_sample = step_to(scheduler, il_pred, t_il, noisy_il, t)
+                il_sample = noisy
                 il_diff = il_sample - noisy
 
                 il_scale = torch.zeros_like(t).float()
