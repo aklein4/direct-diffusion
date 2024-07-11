@@ -123,7 +123,7 @@ def add_more_noise(
     sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
     new_sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[new_timesteps]) ** 0.5
     new_sqrt_one_minus_alpha_prod = new_sqrt_one_minus_alpha_prod.flatten()
-    
+
     while len(sqrt_one_minus_alpha_prod.shape) < len(samples.shape):
         sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
         new_sqrt_one_minus_alpha_prod = new_sqrt_one_minus_alpha_prod.unsqueeze(-1)
@@ -144,7 +144,7 @@ def step_to(
     sample: torch.Tensor,
     prev_timestep
 ):
-    assert prev_timestep <= timestep
+    assert torch.all(prev_timestep <= timestep)
 
     # 2. compute alphas, betas
     alpha_prod_t = scheduler.alphas_cumprod[timestep]
