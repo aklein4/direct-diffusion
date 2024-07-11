@@ -176,8 +176,8 @@ def step_to(
     pred_sample_direction = (1 - alpha_prod_t_prev - 0.0**2) ** (0.5) * pred_epsilon
 
     # 7. compute x_t without "random noise" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
-    prev_sample =  pred_original_sample + pred_sample_direction
-    # alpha_prod_t_prev ** (0.5) *
+    prev_sample =   pred_sample_direction
+    # alpha_prod_t_prev ** (0.5) * pred_original_sample +
 
     return prev_sample
 
