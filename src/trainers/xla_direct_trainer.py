@@ -71,6 +71,7 @@ class XLADirectTrainer(XLABaseTrainer):
                 ).sample
                 uncond_pred, cond_pred = il_pred.chunk(2, dim=0)
                 il_pred = (cond_pred + self.il_guidance * (cond_pred - uncond_pred))
+                il_pred = decode_latents(il_pred)
 
                 il_sample = step_to(scheduler, il_pred, t_il, noisy_il, t)
                 il_diff = il_sample - noisy
