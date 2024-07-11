@@ -73,8 +73,7 @@ class XLADirectTrainer(XLABaseTrainer):
                 il_pred = (cond_pred + self.il_guidance * (cond_pred - uncond_pred))
                 il_pred = decode_latents(il_pred)
 
-                # il_sample = step_to(scheduler, il_pred, t_il, noisy_il, t)
-                il_sample = noisy
+                il_sample = step_to(scheduler, x, t_il, noisy_il, t)
                 il_diff = il_sample - noisy
 
                 il_scale = torch.zeros_like(t).float()
