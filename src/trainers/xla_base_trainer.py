@@ -273,7 +273,7 @@ class XLABaseTrainer:
                             self.save_checkpoint(
                                 {
                                     'model': (model, True),
-                                    'optimizer': (optimizer, True),
+                                    # 'optimizer': (optimizer, True),
                                 },
                                 curr_step
                             )
