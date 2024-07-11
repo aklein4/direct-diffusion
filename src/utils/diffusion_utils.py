@@ -172,10 +172,10 @@ def step_to(
             " `v_prediction`"
         )
 
-    return pred_epsilon
-
     # 6. compute "direction pointing to x_t" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
     pred_sample_direction = (1 - alpha_prod_t_prev - 0.0**2) ** (0.5) * pred_epsilon
+
+    return pred_sample_direction
 
     # 7. compute x_t without "random noise" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf
     prev_sample = alpha_prod_t_prev ** (0.5) * pred_original_sample + pred_sample_direction
