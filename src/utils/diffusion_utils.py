@@ -128,7 +128,7 @@ def add_more_noise(
         sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
         new_sqrt_one_minus_alpha_prod = new_sqrt_one_minus_alpha_prod.unsqueeze(-1)
 
-    signal_ratio = torch.where(sqrt_alpha_prod == 0, torch.ones_like(signal_ratio), new_sqrt_alpha_prod / sqrt_alpha_prod)
+    signal_ratio = torch.where(sqrt_alpha_prod == 0, torch.ones_like(sqrt_alpha_prod), new_sqrt_alpha_prod / sqrt_alpha_prod)
     new_samples = (
             signal_ratio * samples + 
             new_sqrt_one_minus_alpha_prod * (1 - (signal_ratio * sqrt_one_minus_alpha_prod)) * new_noise
