@@ -66,7 +66,7 @@ class XLADirectTrainer(XLABaseTrainer):
                     prompt_embeds,
                 ).sample
                 il_pred = decode_latents(il_pred)
-                il_noise = torch.zeros_like(il_pred)
+                il_noise = torch.randn_like(il_pred)
             
                 il_noisy = scheduler.add_noise(il_pred, il_noise, t)
 
