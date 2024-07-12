@@ -57,31 +57,31 @@ class XLADirectTrainer(XLABaseTrainer):
         )
         noisy = scheduler.add_noise(x, noise, t)
 
-        if self.il_lambda is not None:
+        if self.il_prob is not None:
             with torch.no_grad():
-                t_il = torch.clamp(t + self.il_step, max=scheduler.config.num_train_timesteps - 1)
-
-                noise_il = torch.randn_like(x)
-                noisy_il = add_more_noise(scheduler, noisy, noise_il, t, t_il)
 
                 il_pred = model(
-                    torch.cat([encode_images(noisy_il), encode_images(noisy_il)], dim=0),
-                    torch.cat([t_il, t_il], dim=0),
-                    torch.cat([uncond_embeds.expand(t.shape[0], -1, -1), prompt_embeds], dim=0),
+                    encode_images(noisy),
+                    t,
+                    prompt_embeds,
                 ).sample
-                uncond_pred, cond_pred = il_pred.chunk(2, dim=0)
-                il_pred = (cond_pred + self.il_guidance * (cond_pred - uncond_pred))
                 il_pred = decode_latents(il_pred)
+                il_noise = torch.zeros_like(il_pred)
+            
+                il_noisy = scheduler.add_noise(il_pred, il_noise, t)
 
-                il_sample = step_to(scheduler, il_pred, t_il, noisy_il, t)
-                il_diff = il_sample - noisy
+                il_coin = torch.rand(
+                    x.shape[0],
+                    device=constants.XLA_DEVICE()
+                ) < self.il_prob
+                while len(il_coin.shape) < len(il_noisy.shape):
+                    il_coin = il_coin.unsqueeze(-1)
 
-                il_scale = torch.zeros_like(t).float()
-                il_scale.exponential_(self.il_lambda)
-                while len(il_scale.shape) < len(noisy.shape):
-                    il_scale = il_scale.unsqueeze(-1)
-
-                noisy = noisy + il_scale * il_diff
+                noisy = torch.where(
+                    il_coin,
+                    il_noisy,
+                    noisy
+                )
 
         # input peturbation
         peturbation = self.ip_gamma * torch.randn_like(x)
