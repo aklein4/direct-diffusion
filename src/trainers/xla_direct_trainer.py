@@ -58,30 +58,29 @@ class XLADirectTrainer(XLABaseTrainer):
         noisy = scheduler.add_noise(x, noise, t)
 
         if self.il_prob is not None:
-            with torch.no_grad():
 
-                il_pred = model(
-                    encode_images(noisy),
-                    t,
-                    prompt_embeds,
-                ).sample
-                il_pred = decode_latents(il_pred)
-                il_noise = torch.randn_like(il_pred)
-            
-                il_noisy = scheduler.add_noise(il_pred, il_noise, t)
+            il_pred = model(
+                encode_images(noisy),
+                t,
+                prompt_embeds,
+            ).sample.detach()
+            il_pred = decode_latents(il_pred)
+            il_noise = torch.randn_like(il_pred)
+        
+            il_noisy = scheduler.add_noise(il_pred, il_noise, t)
 
-                il_coin = torch.rand(
-                    x.shape[0],
-                    device=constants.XLA_DEVICE()
-                ) < self.il_prob
-                while len(il_coin.shape) < len(il_noisy.shape):
-                    il_coin = il_coin.unsqueeze(-1)
+            il_coin = torch.rand(
+                x.shape[0],
+                device=constants.XLA_DEVICE()
+            ) < self.il_prob
+            while len(il_coin.shape) < len(il_noisy.shape):
+                il_coin = il_coin.unsqueeze(-1)
 
-                noisy = torch.where(
-                    il_coin,
-                    il_noisy,
-                    noisy
-                )
+            noisy = torch.where(
+                il_coin,
+                il_noisy,
+                noisy
+            )
 
         # input peturbation
         peturbation = self.ip_gamma * torch.randn_like(x)
