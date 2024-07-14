@@ -215,9 +215,9 @@ class RSAttention(nn.Module):
         qkv_states = self.qkv_proj(hidden_states.view(bsz*q_len, 3*self.hidden_size, 1)).view(bsz, q_len, 3*self.hidden_size)
         query_states, key_states, value_states = qkv_states.chunk(3, dim=-1)
 
-        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
-        key_states = key_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
-        value_states = value_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
+        key_states = key_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
+        value_states = value_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
 
         if self.use_qk_norm:
             query_states = self.q_norm(query_states)
