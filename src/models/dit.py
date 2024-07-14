@@ -245,7 +245,7 @@ class DiT(XLAModel):
             kernel_size=config.in_kernel_size * self.patch_size,
             stride=self.patch_size,
             bias=False,
-            padding=(config.in_kernel_size * self.patch_size - 1) // 2
+            padding=((config.in_kernel_size - 1) * self.patch_size) // 2
         )
         self.proj_out = nn.Conv2d(
             in_channels=self.hidden_size,

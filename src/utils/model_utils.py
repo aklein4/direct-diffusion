@@ -16,17 +16,17 @@ class RMSHeadNorm(nn.Module):
         self.norm_eps = norm_eps
         self.mean_div = np.sqrt(self.head_dim)
 
-        self.scales = nn.Parameter(torch.zeros(1, self.num_heads, 1, self.head_dim))
+        self.scales = nn.Parameter(torch.ones(1, self.num_heads, 1, self.head_dim))
 
     
     def forward(self, hidden_states: torch.Tensor):
         assert hidden_states.shape[1] == self.num_heads
         assert hidden_states.shape[-1] == self.head_dim
 
-        norms = torch.norm(hidden_states, dim=-1, keepdim=True) / self.mean_div
-        hidden_states = hidden_states / (norms + self.norm_eps)
+        inv_norms = torch.rsqrt(hidden_states.pow(2).mean(-1, keepdim=True) + self.norm_eps)
+        hidden_states = hidden_states * inv_norms
 
-        out = hidden_states * (1 + self.scales)
+        out = hidden_states * self.scales
         return out.to(hidden_states.dtype)
 
 
@@ -58,7 +58,7 @@ class AdaLayerNorm(nn.Module):
         hidden_states = self.norm(hidden_states)
         
         shift = self.bias(cond_states)
-        scale = 1 + self.gain(cond_states)
+        scale = self.gain(cond_states)
         
         return hidden_states * scale + shift
     
@@ -71,7 +71,7 @@ class AdaLayerNorm(nn.Module):
             self.bias.bias.data.zero_()
 
             self.gain.weight.data.zero_()
-            self.gain.bias.data.zero_()
+            self.gain.bias.data.fill_(1.0)
 
         else:
 
@@ -81,7 +81,7 @@ class AdaLayerNorm(nn.Module):
 
             self.gain[0].weight.data.normal_(mean=0.0, std=std)
             self.gain[1].weight.data.zero_()
-            self.gain[1].bias.data.zero_()
+            self.gain[1].bias.data.fill_(1.0)
 
 
 class AdaGate(nn.Module):
@@ -95,14 +95,14 @@ class AdaGate(nn.Module):
 
 
     def forward(self, hidden_states: torch.Tensor, cond_states: torch.Tensor):
-        scale = 1 + self.gate(cond_states)
+        scale = self.gate(cond_states)
 
         return hidden_states * scale
     
 
     def init_weights(self, std):
         self.gate.weight.data.zero_()
-        self.gate.bias.data.zero_()
+        self.gate.bias.data.fill_(1.0)
 
 
 def get_timestep_embedding(
