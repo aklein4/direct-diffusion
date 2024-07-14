@@ -12,6 +12,7 @@ num_attention_heads: 8
 
 num_channels: 3
 patch_size: 16
+image_size: 128
 
 in_kernel_size: 5
 out_kernel_size: 5

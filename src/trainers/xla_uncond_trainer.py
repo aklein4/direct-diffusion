@@ -27,7 +27,7 @@ class XLAUncondTrainer(XLABaseTrainer):
     ):
 
         # create ema weights
-        ema = {k: v.clone().detach() for k, v in model.state_dict().items()}
+        # ema = {k: v.clone().detach() for k, v in model.state_dict().items()}
 
         # init models
         model.requires_grad_(True)
@@ -93,11 +93,11 @@ class XLAUncondTrainer(XLABaseTrainer):
                 optimizer.zero_grad(set_to_none=True)
                 
                 # update the ema weights
-                for k, v in model.state_dict().items():
-                    if self.ema is not None:
-                        ema[k] = self.ema * ema[k] + (1 - self.ema) * v.detach()
-                    else:
-                        ema[k] = v
+                # for k, v in model.state_dict().items():
+                #     if self.ema is not None:
+                #         ema[k] = self.ema * ema[k] + (1 - self.ema) * v.detach()
+                #     else:
+                #         ema[k] = v
 
                 # update lr
                 self.log.lr = lr_scheduler.get_last_lr()[0]
@@ -135,7 +135,7 @@ class XLAUncondTrainer(XLABaseTrainer):
                         try:
                             self.save_checkpoint(
                                 {
-                                    'ema': (ema, True)
+                                    'model': (model, True)
                                 },
                                 curr_step
                             )

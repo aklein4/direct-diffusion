@@ -28,6 +28,7 @@ class DiTConfig(XLAConfig):
         num_attention_heads: int = 12,
         num_channels: int = 3,
         patch_size: int = 8,
+        image_size: int = 256,
         in_kernel_size: int = 3,
         out_kernel_size: int = 3,
         activation_fn: str = "gelu_pytorch_tanh",
@@ -47,6 +48,7 @@ class DiTConfig(XLAConfig):
 
         self.num_channels = num_channels
         self.patch_size = patch_size
+        self.image_size = image_size
 
         self.in_kernel_size = in_kernel_size
         self.out_kernel_size = out_kernel_size
@@ -111,17 +113,14 @@ class Attention(nn.Module):
             query_states = self.q_norm(query_states)
             key_states = self.k_norm(key_states)
 
-        attn_output = F.scaled_dot_product_attention(
-            query_states,
-            key_states,
-            value_states,
-            attn_mask=None,
-            dropout_p=0.0,
-            is_causal=False
-        )
+        attn_weights = torch.matmul(query_states, key_states.transpose(2, 3)) / np.sqrt(self.head_dim)
 
-        attn_output = attn_output.transpose(1, 2).contiguous()
-        attn_output = attn_output.view(bsz, q_len, self.hidden_size)
+        # upcast attention to fp32
+        attn_weights = nn.functional.softmax(attn_weights, dtype=torch.float32, dim=-1).to(query_states.dtype)
+
+        attn_output = torch.matmul(attn_weights, value_states)
+        attn_output = attn_output.transpose(1, 2)
+        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
 
         return self.o_proj(attn_output)
     
@@ -239,6 +238,7 @@ class DiT(XLAModel):
         self.hidden_size = config.hidden_size
         self.num_channels = config.num_channels
         self.patch_size = config.patch_size
+        self.image_size = config.image_size
         self.num_layers = config.num_layers
 
         # io
@@ -270,6 +270,11 @@ class DiT(XLAModel):
         # Compute configuration
         self.gradient_checkpointing = False
 
+        dp = self.image_size // self.patch_size
+        pos_emb = get_2d_sincos_pos_embed(self.hidden_size, (dp, dp), base_size=self.patch_size) # [l, d]
+        pos_emb = torch.from_numpy(pos_emb).float() # [l, d]
+        self.register_buffer("pos_emb", pos_emb, persistent=True)
+
         # Initialize weights and apply final processing
         self.post_init()
 
@@ -298,9 +303,7 @@ class DiT(XLAModel):
         hidden_states = hidden_states.permute(0, 2, 3, 1).contiguous() # [bs, h, w//p, d//p]
         hidden_states = hidden_states.view(bs, hp*wp, self.hidden_size) # [bs, l, d]
 
-        pos_emb = get_2d_sincos_pos_embed(self.hidden_size, (hp, wp), base_size=self.patch_size) # [l, d]
-        pos_emb = torch.from_numpy(pos_emb).to(hidden_states.dtype).to(hidden_states.device) # [l, d]
-        hidden_states = hidden_states + self.pos_proj(pos_emb).view(1, hp*wp, self.hidden_size) # [bs, l, d]
+        hidden_states = hidden_states + self.pos_proj(self.pos_emb).view(1, hp*wp, self.hidden_size) # [bs, l, d]
 
         return hidden_states
     
