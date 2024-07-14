@@ -40,9 +40,10 @@ class RSDiTConfig(DiTConfig):
 
 class SelectIn(nn.Module):
 
-    def __init__(self, config: RSDiTConfig):
+    def __init__(self, config: RSDiTConfig, num_out=1):
         super().__init__()
         self.config = config
+        self.num_out = num_out
 
         self.hidden_size = config.hidden_size
         self.num_residuals = config.num_residuals
@@ -50,7 +51,7 @@ class SelectIn(nn.Module):
 
         self.proj_in = nn.Conv1d(
             self.hidden_size,
-            self.hidden_size,
+            self.hidden_size*num_out,
             kernel_size=self.num_residuals,
             stride=self.num_residuals,
             groups=self.selection_groups,
@@ -63,7 +64,10 @@ class SelectIn(nn.Module):
 
         hidden_states = hidden_states.view(bs*l, d, r)
         hidden_states = self.proj_in(hidden_states)
-        hidden_states = hidden_states.view(bs, l, d)
+        hidden_states = hidden_states.view(bs, l, d, self.num_out)
+
+        if self.num_out == 1:
+            hidden_states = hidden_states.squeeze(-1)
 
         return hidden_states
     
@@ -119,20 +123,29 @@ class SelectOut(nn.Module):
 
 class CondIn(nn.Module):
 
-    def __init__(self, config: RSDiTConfig):
+    def __init__(self, config: RSDiTConfig, num_out: int):
         super().__init__()
         self.config = config
+        self.num_out = num_out
 
-        self.proj_in = SelectIn(config)
+        self.proj_in = SelectIn(config, num_out)
         self.norm = AdaLayerNorm(
-            config.hidden_size, config.hidden_size,
+            num_out * config.hidden_size, config.hidden_size,
             config.norm_eps, config.ada_rank
         )
     
 
     def forward(self, hidden_states, cond_emb):
+        bs, l, d, r = hidden_states.shape
+        
         hidden_states = self.proj_in(hidden_states)
-        hidden_states = self.norm(hidden_states, cond_emb)
+        hidden_states = self.norm(
+            hidden_states.view(bs, l, d*self.num_out),
+            cond_emb
+        ).view(bs, l, d, self.num_out)
+
+        if self.num_out == 1:
+            hidden_states = hidden_states.squeeze(-1)
 
         return hidden_states
     
@@ -175,15 +188,11 @@ class RSDiTLayer(nn.Module):
         self.attention = Attention(config)
         self.mlp = GatedMLP(config)
 
-        self.q_norm = CondIn(config)
-        self.k_norm = CondIn(config)
-        self.v_norm = CondIn(config)
-
-        self.gate_norm = CondIn(config)
-        self.ff_norm = CondIn(config)
-
-        self.attn_norm = CondOut(config)
-        self.mlp_norm = CondOut(config)
+        self.attn_norm = CondIn(config, 3)
+        self.mlp_norm = CondIn(config, 2)
+        
+        self.attn_gate = CondOut(config)
+        self.mlp_gate = CondOut(config)
 
     
     def forward(
@@ -192,20 +201,17 @@ class RSDiTLayer(nn.Module):
         cond_emb: torch.Tensor
     ):
         
-        attn_in = (
-            self.q_norm(hidden_states, cond_emb),
-            self.k_norm(hidden_states, cond_emb),
-            self.v_norm(hidden_states, cond_emb)
-        )
-        attn_out = self.attention(attn_in)
-        hidden_states = hidden_states + self.attn_norm(attn_out, cond_emb)
+        attn_in = self.attn_norm(
+            hidden_states, cond_emb
+        ).chunk(3, dim=-1)
+        attn_out = self.attention(tuple(a.squeeze(-1) for a in attn_in))
+        hidden_states = hidden_states + self.attn_gate(attn_out, cond_emb)
         
-        self.mlp_in = (
-            self.gate_norm(hidden_states, cond_emb),
-            self.ff_norm(hidden_states, cond_emb)
-        )
-        mlp_out = self.mlp(self.mlp_in)
-        hidden_states = hidden_states + self.mlp_norm(mlp_out, cond_emb)
+        mlp_in = self.mlp_norm(
+            hidden_states, cond_emb
+        ).chunk(2, dim=-1)
+        mlp_out = self.mlp(tuple(m.squeeze(-1) for m in mlp_in))
+        hidden_states = hidden_states + self.mlp_gate(mlp_out, cond_emb)
 
         return hidden_states
 
@@ -215,15 +221,11 @@ class RSDiTLayer(nn.Module):
         self.attention.init_weights(std)
         self.mlp.init_weights(std)
 
-        self.q_norm.init_weights(std)
-        self.k_norm.init_weights(std)
-        self.v_norm.init_weights(std)
-
-        self.gate_norm.init_weights(std)
-        self.ff_norm.init_weights(std)
-
         self.attn_norm.init_weights(std)
         self.mlp_norm.init_weights(std)
+
+        self.attn_gate.init_weights(std)
+        self.mlp_gate.init_weights(std)
 
 
 class RSDiT(DiT):

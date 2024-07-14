@@ -25,7 +25,7 @@ norm_eps: 0.00001
 
 num_residuals: 4
 selection_groups: 32
-ada_rank: 128
+ada_rank: 256
 
 gradient_checkpointing: False
 
