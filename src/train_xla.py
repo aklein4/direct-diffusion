@@ -9,7 +9,7 @@ import huggingface_hub as hf
 
 from diffusers import DDIMScheduler
 
-from loaders.simple_loader import get_simple_loader
+from loaders.imagenet_loader import get_imagenet_loader
 from models import CONFIG_DICT, MODEL_DICT
 from trainers import TRAINER_DICT
 
@@ -53,7 +53,7 @@ def _mp_fn(index, args):
     scheduler.set_timesteps(scheduler.config.num_train_timesteps)
 
     log_print("Loading data...")
-    loader = get_simple_loader(
+    loader = get_imagenet_loader(
         args.dataset,
         "train",
         train_config["bs"],
