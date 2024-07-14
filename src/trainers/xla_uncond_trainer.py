@@ -155,7 +155,7 @@ class XLAUncondTrainer(XLABaseTrainer):
         bs = len(x)
 
         # diffusion process
-        noise = torch.randn_like(x)
+        noise = torch.randn_like(x) + self.ip_gamma * torch.randn_like(x)
         t = torch.randint(
             0, scheduler.config.num_train_timesteps,
             [bs],
@@ -163,10 +163,6 @@ class XLAUncondTrainer(XLABaseTrainer):
             dtype=torch.long
         )
         noisy = scheduler.add_noise(x, noise, t)
-
-        # input peturbation
-        peturbation = self.ip_gamma * torch.randn_like(x)
-        noisy = insert_noise(scheduler, noisy, peturbation, t)
 
         # get the model output
         model_pred = model(noisy, t)

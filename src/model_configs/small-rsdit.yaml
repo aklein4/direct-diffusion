@@ -1,0 +1,43 @@
+
+model_type: rsdit
+architectures: [
+    RSDiT
+]
+
+hidden_size: 768
+mlp_size: 2048
+
+num_layers: 45
+num_attention_heads: 12
+
+num_channels: 3
+patch_size: 8
+image_size: 64
+
+in_kernel_size: 5
+out_kernel_size: 5
+
+activation_fn: gelu_pytorch_tanh
+use_qkv_bias: true
+use_qk_norm: true
+
+initializer_range: 0.02
+norm_eps: 0.00001
+
+num_residuals: 4
+selection_groups: 24
+ada_rank: 128
+
+gradient_checkpointing: False
+
+scheduler: 
+  beta_end: 0.012
+  beta_schedule: scaled_linear
+  beta_start: 0.00085
+  num_train_timesteps: 1000
+  set_alpha_to_one: false
+  steps_offset: 1
+  trained_betas: null
+  clip_sample: false
+
+  prediction_type: sample

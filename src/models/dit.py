@@ -79,9 +79,7 @@ class Attention(nn.Module):
             )
         
         self.use_qkv_bias = config.use_qkv_bias
-        self.q_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=config.use_qkv_bias)
-        self.k_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=config.use_qkv_bias)
-        self.v_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=config.use_qkv_bias)
+        self.qkv_proj = nn.Linear(self.hidden_size, 3 * self.hidden_size, bias=config.use_qkv_bias)
         self.o_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
 
         self.use_qk_norm = config.use_qk_norm
@@ -93,17 +91,10 @@ class Attention(nn.Module):
         self,
         hidden_states: torch.Tensor
     ):
-        if isinstance(hidden_states, tuple):
-            query_states, key_states, value_states = hidden_states
-        else:
-            query_states = key_states = value_states = hidden_states
-
-        bsz, q_len, _ = query_states.shape
+        bsz, q_len, _ = hidden_states.shape
 
         # get tensors for attention
-        query_states = self.q_proj(query_states)
-        key_states = self.k_proj(key_states)
-        value_states = self.v_proj(value_states)
+        query_states, key_states, value_states = self.qkv_proj(hidden_states).chunk(3, dim=-1)
 
         query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
         key_states = key_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
@@ -126,15 +117,11 @@ class Attention(nn.Module):
     
 
     def init_weights(self, std):
-        self.q_proj.weight.data.normal_(mean=0.0, std=std)
-        self.k_proj.weight.data.normal_(mean=0.0, std=std)
-        self.v_proj.weight.data.normal_(mean=0.0, std=std)
+        self.qkv_proj.weight.data.normal_(mean=0.0, std=std)
         self.o_proj.weight.data.normal_(mean=0.0, std=std)
 
         if self.use_qkv_bias:
-            self.q_proj.bias.data.zero_()
-            self.k_proj.bias.data.zero_()
-            self.v_proj.bias.data.zero_()
+            self.qkv_proj.bias.data.zero_()
 
 
 class GatedMLP(nn.Module):
@@ -146,8 +133,7 @@ class GatedMLP(nn.Module):
         self.mlp_size = config.mlp_size
         self.hidden_size = config.hidden_size
 
-        self.gate_proj = nn.Linear(self.hidden_size, self.mlp_size, bias=False)
-        self.value_proj = nn.Linear(self.hidden_size, self.mlp_size, bias=False)
+        self.proj_up = nn.Linear(self.hidden_size, 2 * self.mlp_size, bias=False)
         self.proj_down = nn.Linear(self.mlp_size, self.hidden_size, bias=False)
 
         self.act_fn = ACT2FN[config.activation_fn]
@@ -157,13 +143,7 @@ class GatedMLP(nn.Module):
         self,
         hidden_states: torch.Tensor
     ):
-        if isinstance(hidden_states, tuple):
-            gate_states, value_states = hidden_states
-        else:
-            gate_states = value_states = hidden_states
-        
-        gate = self.gate_proj(gate_states)
-        value = self.value_proj(value_states)
+        gate, value = self.proj_up(hidden_states).chunk(2, dim=-1)
 
         intermediate = self.act_fn(gate) * value
 
@@ -171,8 +151,7 @@ class GatedMLP(nn.Module):
 
 
     def init_weights(self, std):
-        self.gate_proj.weight.data.normal_(mean=0.0, std=std)
-        self.value_proj.weight.data.normal_(mean=0.0, std=std)
+        self.proj_up.weight.data.normal_(mean=0.0, std=std)
         self.proj_down.weight.data.normal_(mean=0.0, std=std)
 
 
