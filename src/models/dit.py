@@ -1,8 +1,8 @@
 from typing import Any, Dict, Optional
 
 import torch
-import torch.nn.functional as F
 from torch import nn
+import torch.nn.functional as F
 
 import numpy as np
 
@@ -17,6 +17,8 @@ from utils.model_utils import (
 
 
 class DiTConfig(XLAConfig):
+
+    model_type = 'dit'
 
     def __init__(
         self,
@@ -228,6 +230,7 @@ class DiTLayer(nn.Module):
 
 class DiT(XLAModel):
 
+    config_class = DiTConfig
     layer_type = DiTLayer
 
     def __init__(self, config: DiTConfig):
@@ -310,6 +313,8 @@ class DiT(XLAModel):
         bs, c, h, w = x.shape
         hp, wp = h // self.patch_size, w // self.patch_size
 
+        hidden_states = self.norm(hidden_states)
+
         out = hidden_states.view(bs, hp, wp, self.config.hidden_size) # [bs, hp, wp, d]
         out = out.permute(0, 3, 1, 2).contiguous() # [bs, d, hp, wp]
         out = self.proj_out(out) # [bs, c*p*p, hp, wp]
@@ -343,7 +348,6 @@ class DiT(XLAModel):
             else:
                 hidden_states = layer(hidden_states, cond_emb)
 
-        hidden_states = self.norm(hidden_states)
         out = self.get_output(hidden_states, x)
 
         return out
