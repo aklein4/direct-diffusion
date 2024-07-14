@@ -1,0 +1,23 @@
+trainer_type: XLAUncondTrainer
+
+start_lr: 0.0001
+end_lr: null
+
+bs: 256
+mini_bs: 8
+
+beta1: 0.9
+beta2: 0.999
+eps: 0.00000001
+weight_decay: 0.1
+
+warmup_steps: 1
+lr_steps: null
+
+checkpoint_interval: 5000
+
+ip_gamma: 0.1
+
+snr_gamma: 5
+snr_epsilon: 0.0
+snr_scale: 1.0

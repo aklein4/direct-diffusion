@@ -2,14 +2,14 @@
 from tqdm import tqdm
 
 from loaders.simple_loader import get_simple_loader
+from loaders.imagenet_loader import get_imagenet_loader
 
-
-loader = get_simple_loader(
-    'aklein4/coyo-llava-hq',
-    "validation",
+loader = get_imagenet_loader(
+    'ILSVRC/imagenet-1k',
+    "train",
     8,
 )
 
-with tqdm() as pbar:
-    for prompts, x, mask in loader:
-        pbar.update(mask.int().sum().item())
+for x, labels in loader:
+    print(labels)
+    break

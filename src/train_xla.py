@@ -7,27 +7,15 @@ import os
 import argparse
 import huggingface_hub as hf
 
+from diffusers import DDIMScheduler
+
 from loaders.simple_loader import get_simple_loader
-from models import get_components
+from models import CONFIG_DICT, MODEL_DICT
 from trainers import TRAINER_DICT
 
 import utils.constants as constants
-from utils.config_utils import load_train_config
+from utils.config_utils import load_model_config, load_train_config
 from utils.logging_utils import log_print
-
-
-# override the default checkpointing function
-from torch_xla.utils.checkpoint import checkpoint as xla_checkpoint_fn
-
-def override_checkpoint_fn(fn, *args, **kwargs):
-
-    # we can't gradient checkpoint with reentrant mode
-    if kwargs.pop('use_reentrant', False):
-        return fn(*args, **kwargs)
-
-    return xla_checkpoint_fn(fn, *args, **kwargs)
-
-torch.utils.checkpoint.checkpoint = override_checkpoint_fn
 
 
 def _mp_fn(index, args):
@@ -41,13 +29,28 @@ def _mp_fn(index, args):
     )
 
     log_print("Loading configs...")
+    model_config = load_model_config(args.model_config)
     train_config = load_train_config(args.train_config)
 
     log_print("Loading model...")
-    model, scheduler, tokenizer, text_encoder = get_components(args.model_url)
+    model_type = model_config["model_type"]
+    model = MODEL_DICT[model_type](
+        CONFIG_DICT[model_type](**model_config)
+    )
 
     model = model.to(constants.XLA_DEVICE())
-    text_encoder = text_encoder.to(torch.bfloat16).to(constants.XLA_DEVICE())
+    
+    if not args.debug:
+        log_print("Syncing model...")
+
+        # broadcast with bfloat16 for speed
+        model = model.to(torch.bfloat16)
+        xm.broadcast_master_param(model)
+        model = model.to(torch.float32)
+
+    log_print("Loading scheduler...")
+    scheduler = DDIMScheduler(**model_config["scheduler"])
+    scheduler.set_timesteps(scheduler.config.num_train_timesteps)
 
     log_print("Loading data...")
     loader = get_simple_loader(
@@ -67,8 +70,6 @@ def _mp_fn(index, args):
     trainer.train(
         model,
         scheduler,
-        tokenizer,
-        text_encoder,
         loader
     )
 
@@ -83,7 +84,7 @@ if __name__ == '__main__':
     args = argparse.ArgumentParser()
     args.add_argument("--project", type=str, required=True)
     args.add_argument("--name", type=str, required=True)
-    args.add_argument("--model_url", type=str, required=True)
+    args.add_argument("--model_config", type=str, required=True)
     args.add_argument("--train_config", type=str, required=True)
     args.add_argument("--dataset", type=str, required=True)
     args.add_argument("--debug", action="store_true")

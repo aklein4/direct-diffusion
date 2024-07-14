@@ -93,7 +93,10 @@ class XLABaseTrainer:
 
                 if on_device:
                     os.makedirs(tmp_path, exist_ok=True)
-                    xm.save(model.state_dict(), os.path.join(tmp_path, "state_dict.pt"))
+                    try:
+                        xm.save(model.state_dict(), os.path.join(tmp_path, "state_dict.pt"))
+                    except:
+                        xm.save(model, os.path.join(tmp_path, "state_dict.pt"))
                     try:
                         model.config.save_pretrained(tmp_path, push_to_hub=False)
                     except:
