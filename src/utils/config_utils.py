@@ -8,7 +8,6 @@ import utils.constants as constants
 
 def load_model_config(
     name: str,
-    tokenizer,
 ) -> Dict[str, Any]:
     """ Get a model configuration from a file and tokenizer.
 
@@ -24,14 +23,6 @@ def load_model_config(
     path = os.path.join(constants.MODEL_CONFIG_PATH, f"{name}.yaml")
     with open(path, "r") as f:
         config = yaml.safe_load(f)
-
-    # add special tokens
-    config["bos_token_id"] = tokenizer.bos_token_id
-    config["eos_token_id"] = tokenizer.eos_token_id
-    config["pad_token_id"] = tokenizer.pad_token_id
-
-    # get vocab size
-    config["vocab_size"] = len(tokenizer)
 
     return config
 
