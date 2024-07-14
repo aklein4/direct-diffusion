@@ -6,13 +6,14 @@ import torch.nn.functional as F
 
 import numpy as np
 
+from transformers.activations import ACT2FN
+
 from models.xla import XLAModel
 from models.dit import (
-    DiT, DiTConfig,
-    Attention, GatedMLP
+    DiT, DiTConfig
 )
 from utils.model_utils import (
-    AdaLayerNorm, AdaGate,
+    RMSHeadNorm, AdaLayerNorm, AdaGate,
     get_2d_sincos_pos_embed
 )
 
@@ -64,10 +65,7 @@ class SelectIn(nn.Module):
 
         hidden_states = hidden_states.view(bs*l, d, r)
         hidden_states = self.proj_in(hidden_states)
-        hidden_states = hidden_states.view(bs, l, d, self.num_out)
-
-        if self.num_out == 1:
-            hidden_states = hidden_states.squeeze(-1)
+        hidden_states = hidden_states.view(bs, l, d * self.num_out)
 
         return hidden_states
     
@@ -140,12 +138,9 @@ class CondIn(nn.Module):
         
         hidden_states = self.proj_in(hidden_states)
         hidden_states = self.norm(
-            hidden_states.view(bs, l, d*self.num_out),
+            hidden_states,
             cond_emb
-        ).view(bs, l, d, self.num_out)
-
-        if self.num_out == 1:
-            hidden_states = hidden_states.squeeze(-1)
+        )
 
         return hidden_states
     
@@ -179,14 +174,127 @@ class CondOut(nn.Module):
         self.gate.init_weights(std)
 
 
+class RSAttention(nn.Module):
+
+    def __init__(self, config: DiTConfig):
+        super().__init__()
+        self.config = config
+
+        self.hidden_size = config.hidden_size
+        self.num_heads = config.num_attention_heads
+
+        self.head_dim = self.hidden_size // self.num_heads
+        if (self.head_dim * self.num_heads) != self.hidden_size:
+            raise ValueError(
+                f"hidden_size must be divisible by num_heads (got `hidden_size`: {self.hidden_size} and `num_heads`: {self.num_heads})."
+            )
+        
+        self.use_qkv_bias = config.use_qkv_bias
+        self.qkv_proj = nn.Conv1d(
+            3 * self.hidden_size,
+            3 * self.hidden_size,
+            kernel_size=1,
+            stride=1,
+            groups=3,
+            bias=self.use_qkv_bias
+        )
+        self.o_proj = nn.Linear(self.hidden_size, self.hidden_size, bias=False)
+
+        self.use_qk_norm = config.use_qk_norm
+        self.q_norm = RMSHeadNorm(self.num_heads, self.head_dim, config.norm_eps) if self.use_qk_norm else None
+        self.k_norm = RMSHeadNorm(self.num_heads, self.head_dim, config.norm_eps) if self.use_qk_norm else None
+
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor
+    ):
+        bsz, q_len, _ = hidden_states.shape
+
+        # get tensors for attention
+        qkv_states = self.qkv_proj(hidden_states.view(bsz*q_len, 3*self.hidden_size, 1)).view(bsz, q_len, 3*self.hidden_size)
+        query_states, key_states, value_states = qkv_states.chunk(3, dim=-1)
+
+        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+        key_states = key_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+        value_states = value_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+
+        if self.use_qk_norm:
+            query_states = self.q_norm(query_states)
+            key_states = self.k_norm(key_states)
+
+        attn_output = F.scaled_dot_product_attention(
+            query_states,
+            key_states,
+            value_states,
+            attn_mask=None,
+            dropout_p=0.0,
+            is_causal=False
+        )
+
+        attn_output = attn_output.transpose(1, 2).contiguous()
+        attn_output = attn_output.view(bsz, q_len, self.hidden_size)
+
+        return self.o_proj(attn_output)
+    
+
+    def init_weights(self, std):
+        self.qkv_proj.weight.data.normal_(mean=0.0, std=std)
+        self.o_proj.weight.data.normal_(mean=0.0, std=std)
+
+        if self.use_qkv_bias:
+            self.qkv_proj.bias.data.zero_()
+
+
+class RSGatedMLP(nn.Module):
+
+    def __init__(self, config: DiTConfig):
+        super().__init__()
+        self.config = config
+
+        self.mlp_size = config.mlp_size
+        self.hidden_size = config.hidden_size
+
+        self.up_proj = nn.Conv1d(
+            2 * self.hidden_size,
+            2 * self.mlp_size,
+            kernel_size=1,
+            stride=1,
+            bias=False,
+            groups=2
+        )
+        self.proj_down = nn.Linear(self.mlp_size, self.hidden_size, bias=False)
+
+        self.act_fn = ACT2FN[config.activation_fn]
+
+    
+    def forward(
+        self,
+        hidden_states: torch.Tensor
+    ):
+        bs, l, _ = hidden_states.shape
+        
+        states = self.up_proj(hidden_states.view(bs*l, 2*self.hidden_size, 1)).view(bs, l, 2*self.mlp_size)
+        gate, value = states.chunk(2, dim=-1)
+
+        intermediate = self.act_fn(gate) * value
+
+        return self.proj_down(intermediate)
+
+
+    def init_weights(self, std):
+        self.up_proj.weight.data.normal_(mean=0.0, std=std)
+        self.proj_down.weight.data.normal_(mean=0.0, std=std)
+
+
 class RSDiTLayer(nn.Module):
 
     def __init__(self, config: DiTConfig):
         super().__init__()
         self.config = config
 
-        self.attention = Attention(config)
-        self.mlp = GatedMLP(config)
+        self.attention = RSAttention(config)
+        self.mlp = RSGatedMLP(config)
 
         self.attn_norm = CondIn(config, 3)
         self.mlp_norm = CondIn(config, 2)
@@ -201,16 +309,12 @@ class RSDiTLayer(nn.Module):
         cond_emb: torch.Tensor
     ):
         
-        attn_in = self.attn_norm(
-            hidden_states, cond_emb
-        ).chunk(3, dim=-1)
-        attn_out = self.attention(tuple(a.squeeze(-1) for a in attn_in))
+        attn_in = self.attn_norm(hidden_states, cond_emb)
+        attn_out = self.attention(attn_in)
         hidden_states = hidden_states + self.attn_gate(attn_out, cond_emb)
         
-        mlp_in = self.mlp_norm(
-            hidden_states, cond_emb
-        ).chunk(2, dim=-1)
-        mlp_out = self.mlp(tuple(m.squeeze(-1) for m in mlp_in))
+        mlp_in = self.mlp_norm(hidden_states, cond_emb)
+        mlp_out = self.mlp(mlp_in)
         hidden_states = hidden_states + self.mlp_gate(mlp_out, cond_emb)
 
         return hidden_states
