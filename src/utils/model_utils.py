@@ -26,7 +26,8 @@ class RMSHeadNorm(nn.Module):
         norms = torch.norm(hidden_states, dim=-1, keepdim=True) / self.mean_div
         hidden_states = hidden_states / (norms + self.norm_eps)
 
-        return hidden_states * (1 + self.scales)
+        out = hidden_states * (1 + self.scales)
+        return out.to(hidden_states.dtype)
 
 
 class AdaLayerNorm(nn.Module):
