@@ -23,7 +23,6 @@ class RMSHeadNorm(nn.Module):
         assert hidden_states.shape[1] == self.num_heads
         assert hidden_states.shape[-1] == self.head_dim
 
-        hidden_states = hidden_states.to(torch.float32)
         norms = torch.norm(hidden_states, dim=-1, keepdim=True) / self.mean_div
         hidden_states = hidden_states / (norms + self.norm_eps)
 
