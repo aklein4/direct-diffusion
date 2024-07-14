@@ -75,7 +75,7 @@ class XLAUncondTrainer(XLABaseTrainer):
 
                         # scale results for accumulation
                         for k, v in results.items():
-                            results[k] = v / (len(x_split) * constants.NUM_XLA_DEVICES())
+                            results[k] = v / len(x_split)
 
                         # save results
                         with torch.no_grad():
@@ -84,6 +84,7 @@ class XLAUncondTrainer(XLABaseTrainer):
                                     results_accum[k] = 0.0
                                 results_accum[k] = results_accum[k] + v.detach()
                 
+                    # gradient reduction is done by averaging
                     results.loss.backward()
                     if len(x_split) > 1:
                         xm.mark_step()
@@ -116,7 +117,7 @@ class XLAUncondTrainer(XLABaseTrainer):
                     self.log.seen_images = self.seen_images
 
                     for k, v in results_accum.items():
-                        r = xm.mesh_reduce(f"{k}_reduce", v, np.sum)
+                        r = xm.mesh_reduce(f"{k}_reduce", v, np.mean)
                         self.log[k] = r
 
                     # print update
