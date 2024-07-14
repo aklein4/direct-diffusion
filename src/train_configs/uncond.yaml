@@ -3,7 +3,7 @@ trainer_type: XLAUncondTrainer
 start_lr: 0.0001
 end_lr: null
 
-bs: 4096
+bs: 2048
 mini_bs: 128
 
 beta1: 0.9
