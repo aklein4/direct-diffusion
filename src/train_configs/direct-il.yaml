@@ -1,20 +1,20 @@
 trainer_type: XLADirectTrainer
 
-start_lr: 0.0001
+start_lr: 0.00005
 end_lr: null
 
-bs: 512
-mini_bs: 4
+bs: 480
+mini_bs: 6
 
 beta1: 0.9
 beta2: 0.999
 eps: 0.00000001
 weight_decay: 0.01
 
-warmup_steps: 200
+warmup_steps: 500
 lr_steps: null
 
-checkpoint_interval: 1000
+checkpoint_interval: 2000
 
 ema: 0.999
 
