@@ -9,7 +9,6 @@ from utils.diffusion_utils import (
     encode_prompts,
     encode_images, decode_latents,
     compute_min_snr,
-    add_more_noise, step_to, insert_noise
 )
 import utils.constants as constants
 
@@ -47,44 +46,36 @@ class XLADirectTrainer(XLABaseTrainer):
             prompt_embeds
         )
 
-        # diffusion process
-        noise = torch.randn_like(x)
+        x0 = x
         t = torch.randint(
             0, scheduler.config.num_train_timesteps,
             [len(x)],
             device=constants.XLA_DEVICE(),
             dtype=torch.long
         )
-        noisy = scheduler.add_noise(x, noise, t)
 
-        if self.il_prob is not None:
+        if self.il_max is not None:
 
-            il_pred = model(
-                encode_images(noisy),
+            x_il = scheduler.add_noise(x, torch.randn_like(x), t)
+            pred_il = model(
+                encode_images(x_il),
                 t,
                 prompt_embeds,
             ).sample.detach()
-            il_pred = decode_latents(il_pred)
-            il_noise = torch.randn_like(il_pred)
-        
-            il_noisy = scheduler.add_noise(il_pred, il_noise, t)
+            pred_il = decode_latents(pred_il)
 
-            il_coin = torch.rand(
+            scale_il = torch.rand(
                 x.shape[0],
                 device=constants.XLA_DEVICE()
-            ) < self.il_prob
-            while len(il_coin.shape) < len(il_noisy.shape):
-                il_coin = il_coin.unsqueeze(-1)
+            ) * self.il_max
+            while len(scale_il.shape) < len(pred_il.shape):
+                scale_il = scale_il.unsqueeze(-1)
+            
+            x0 = x0 + scale_il * (pred_il - x0)
 
-            noisy = torch.where(
-                il_coin,
-                il_noisy,
-                noisy
-            )
-
-        # input peturbation
-        peturbation = self.ip_gamma * torch.randn_like(x)
-        noisy = insert_noise(scheduler, noisy, peturbation, t)
+        # diffusion process
+        noise = torch.randn_like(x) + self.ip_gamma * torch.randn_like(x)
+        noisy = scheduler.add_noise(x0, noise, t)
 
         # get the model output
         model_pred = model(

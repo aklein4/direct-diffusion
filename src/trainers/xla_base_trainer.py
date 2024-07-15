@@ -147,11 +147,11 @@ class XLABaseTrainer:
         # init models
         model.requires_grad_(True)
         model.train()
-        if self.gradient_checkpointing:
-            model.enable_gradient_checkpointing()
-
         text_encoder.requires_grad_(False)
         text_encoder.eval()
+
+        # create ema weights
+        ema = {k: v.clone().detach() for k, v in model.state_dict().items()}
 
         # init training objs
         optimizer = syncfree.AdamW(
@@ -221,7 +221,9 @@ class XLABaseTrainer:
                                     results_accum[k] = []
                                 results_accum[k].append((v[0].detach(), v[1].detach()))
                     
-                        loss = loss / (len(x_split) * constants.NUM_XLA_DEVICES())
+                        # scale loss for accumulation
+                        loss = loss / len(x_split)
+                    
                     loss.backward()
                     if len(x_split) > 1:
                         xm.mark_step()
@@ -230,12 +232,18 @@ class XLABaseTrainer:
                 xm.optimizer_step(optimizer)
                 optimizer.zero_grad(set_to_none=True)
                 
+                # update the ema weights
+                for k, v in model.state_dict().items():
+                    if self.ema is not None:
+                        ema[k] = self.ema * ema[k] + (1 - self.ema) * v.detach()
+                    else:
+                        ema[k] = v
+
                 # update lr
                 self.log.lr = lr_scheduler.get_last_lr()[0]
                 lr_scheduler.step()
 
                 # tracking
-                image_tracker.add(self.bs)
                 step_tracker.add(1)
                 curr_step += 1
                 self.log.steps_completed = curr_step
@@ -243,7 +251,9 @@ class XLABaseTrainer:
                 def _post_step():
 
                     # log seen images
-                    self.seen_images += xm.mesh_reduce("seen_images_reduce", mask.int().sum().item(), np.sum)
+                    images_in_batch = xm.mesh_reduce("seen_images_reduce", mask.int().sum().item(), np.sum)
+                    image_tracker.add(images_in_batch)
+                    self.seen_images += images_in_batch
                     self.log.seen_images = self.seen_images
 
                     # log
@@ -275,7 +285,8 @@ class XLABaseTrainer:
                         try:
                             self.save_checkpoint(
                                 {
-                                    'model': (model, True),
+                                    'ema': (ema, True)
+                                    # 'model': (model, True),
                                     # 'optimizer': (optimizer, True),
                                 },
                                 curr_step

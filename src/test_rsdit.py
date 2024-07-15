@@ -23,15 +23,15 @@ def main():
         np.sum([p.numel() for p in base_model.parameters()])
     :_}")
 
-    # x = torch.randn(4, 3, 128, 128)
-    # t = torch.randint(0, 1000, (4,)).long()
-    # y_base = base_model(x, t)
-    # y = model(x, t)
+    x = torch.randn(4, 3, 256, 256)
+    t = torch.randint(0, 1000, (4,)).long()
+    y_base = base_model(x, t)
+    y = model(x, t)
 
-    # print(y)
-    # print(x.shape)
-    # print(y_base.shape)
-    # print(y.shape)
+    print(y)
+    print(x.shape)
+    print(y_base.shape)
+    print(y.shape)
     
 
 if __name__ == '__main__':

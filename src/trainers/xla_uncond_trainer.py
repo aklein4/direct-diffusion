@@ -105,7 +105,6 @@ class XLAUncondTrainer(XLABaseTrainer):
                 lr_scheduler.step()
 
                 # tracking
-                image_tracker.add(self.bs)
                 step_tracker.add(1)
                 curr_step += 1
                 self.log.steps_completed = curr_step
@@ -113,6 +112,7 @@ class XLAUncondTrainer(XLABaseTrainer):
                 def _post_step():
 
                     # log seen images
+                    image_tracker.add(self.bs)
                     self.seen_images += self.bs
                     self.log.seen_images = self.seen_images
 
