@@ -7,15 +7,15 @@ architectures: [
 hidden_size: 768
 mlp_size: 2048
 
-num_layers: 48
+num_layers: 24
 num_attention_heads: 12
 
 num_channels: 3
-patch_size: 8
-image_size: 64
+patch_size: 16
+image_size: 256
 
-in_kernel_size: 5
-out_kernel_size: 5
+in_kernel_size: 3
+out_kernel_size: 3
 
 activation_fn: gelu_pytorch_tanh
 use_qkv_bias: true

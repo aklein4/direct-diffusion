@@ -38,7 +38,7 @@ def format_image(image):
         lower = upper + w
 
     image = image.crop((left, upper, right, lower))
-    image = image.resize((64, 64))
+    image = image.resize((256, 256))
 
     if np.random.rand() < 0.5:
         image = PIL.ImageOps.mirror(image)

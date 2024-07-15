@@ -420,7 +420,7 @@ class RSDiT(DiT):
         pos_emb = self.prep_pos(pos_emb) # [bs, l, r, d]
         hidden_states = hidden_states + pos_emb
 
-        return hidden_states
+        return hidden_states.contiguous()
     
 
     def get_output(self, hidden_states, x):

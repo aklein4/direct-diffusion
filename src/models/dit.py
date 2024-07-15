@@ -284,7 +284,7 @@ class DiT(XLAModel):
 
         hidden_states = hidden_states + self.pos_proj(self.pos_emb).view(1, hp*wp, self.hidden_size) # [bs, l, d]
 
-        return hidden_states
+        return hidden_states.contiguous()
     
 
     def get_cond_emb(self, t):
